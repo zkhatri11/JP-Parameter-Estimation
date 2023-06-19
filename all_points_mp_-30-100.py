@@ -5,9 +5,7 @@
 
 # In[1]:
 with open('output.txt', 'w') as f:
-    print('Starting script...')
-    # rest of your code here
-    
+    print('Starting script...') 
 
     import numpy as np
     import lal
@@ -16,11 +14,11 @@ with open('output.txt', 'w') as f:
     import h5py
     import time
     import multiprocessing as mp
-
-
+    
 # In[2]:
 
-
+    # Reading the relevant agnostic data file. This code uses GW150914 data as an example which can be replaced with a data file from any event.
+    
     fp = io.loadfile('GW150914_3ms_freq_tau_4knliv.hdf', 'r')
     samples = fp.read_samples(fp['samples'].keys())
     mass_est = samples['final_mass_from_f0_tau(f_220, tau_220, 2, 2)']
@@ -48,10 +46,10 @@ with open('output.txt', 'w') as f:
     # expressions for calculating frequency and damping in JP geometry
     
     def f_JP(m,x,e):
-        return 2*(((f1+f2*((1.-x)**f3))*c**2)/(2.*np.pi*m*g) + (e*((1/(81.*np.sqrt(3))+((10.*x)/(729.))+((47.*x**2)/(1458.*np.sqrt(3))))))/(2.*np.pi*m))/lal.MTSUN_SI
+        return 2*(((f1+f2*((1.-x)**f3)))/(2.*np.pi*m) + (e*((1/(81.*np.sqrt(3))+((10.*x)/(729.))+((47.*x**2)/(1458.*np.sqrt(3))))))/(2.*np.pi*m))/lal.MTSUN_SI
 
     def t_JP(m,x,e):
-        return (((c**2/(2.*np.pi*m*g))*(((f1 + f2*((1.-x)**f3))*np.pi)/(q1 + q2*((1-x)**q3)) - e*((x)/(486.) + (16.*x**2)/(2187.*np.sqrt(3))))/lal.MTSUN_SI))**(-1)
+        return (((1/(2.*np.pi*m))*(((f1 + f2*((1.-x)**f3))*np.pi)/(q1 + q2*((1-x)**q3)) - e*((x)/(486.) + (16.*x**2)/(2187.*np.sqrt(3))))/lal.MTSUN_SI))**(-1)
 
     #compute the mass for a given frequency/damping time data value, spin and epsilon
 
@@ -139,7 +137,8 @@ with open('output.txt', 'w') as f:
 
     # In[104]:
 
-
+    # Save final results by creating a new file to be processed later.
+    
     with h5py.File('final_posteriors_tot_epsprior_-30-100.hdf', 'w') as f:
         f.create_dataset('freq_JP', data=freq_JP)
         f.create_dataset('tau_JP', data=tau_JP)
