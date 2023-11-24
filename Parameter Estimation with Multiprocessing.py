@@ -283,7 +283,7 @@ def process_iteration(i):
 
 if __name__ == "__main__": 
 
-    gp = io.loadfile('AGNOSTIC-06MS (1).hdf', 'r') 
+    gp = io.loadfile('AGNOSTIC-06MS.hdf', 'r') 
     Samples1 = gp.read_samples(gp['samples'].keys()) 
     
     ##### 220 mode ringdown ####
