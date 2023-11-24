@@ -5,7 +5,7 @@ from pycbc.results import scatter_histograms
 
 
 file_name = 'GRMassPrior190521-single-M126-378-E-30-300.hdf'
-with h5py.File(file_name, 'r') as f: ### M=[20,200], e3 = [-30,300]
+with h5py.File(file_name, 'r') as f: 
     # Access datasets
     all_param_data = f['All_param'][:]
     M_valuesZ = f['Mass'][:]
@@ -26,7 +26,7 @@ fig, axis_dict = scatter_histograms.create_axes_grid(
             params, labels=lbls,
             width_ratios=width_ratios, height_ratios=height_ratios,
             no_diagonals=False)
-# {'mass':M_valuesD, 'spin':X_valuesD, 'epsilon': e3_valuesD},
+
 all_samples = [{'mass':M_valuesZ, 'spin':X_valuesZ, 'epsilon': e3_valuesZ}]
 legend_lbls = ['GW190521']
 
