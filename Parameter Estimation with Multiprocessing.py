@@ -10,10 +10,34 @@ from multiprocessing import Pool, Manager
 from multiprocessing.pool import ThreadPool
 from scipy.stats import norm
 
+def common(y,spin,epsilon): 
+    ''' This is a common term that shows up in most
+        of the algebraic expressions, frequently under a square root.
+        
+        This term turns out to be negative for some values of spin 
+        and epsilon which causes RuntimeError because the square root
+        becomes complex. We do not need complex numbers and therefore we discard 
+        the values of spin and epsilon using the if condition; C>=0. 
+        If the condition is False, the function returns None and this output 
+        is used as a condition in the frequency and damping time 
+        expressions to discard complex numbers.
+    '''
+    
+    C = (9*epsilon**2*spin**2)/y**8 - 6*epsilon/y**3 + 16*epsilon/y**4 + 4/y
+
+    if C>=0:
+        return C
+    return None
+
 def func(y,spin,epsilon):
+    ''' Defined using the 'function' vairable from the preceding cell.
+    
+        *Dimensionless effective potential.*
+    '''
+    
     com_term = common(y,spin,epsilon)# (9*epsilon**2*spin**2)/y**8 - 6*epsilon/y**3 + 16*epsilon/y**4 + 4/y 
     if com_term !=None:
-        unc = y**2* ( (9*epsilon**3*spin**2*y - 30*epsilon**3*spin**2 + 9*epsilon**2*spin**2*y**4 - 42*epsilon**2*spin**2*y**3 \
+        f = y**2* ( (9*epsilon**3*spin**2*y - 30*epsilon**3*spin**2 + 9*epsilon**2*spin**2*y**4 - 42*epsilon**2*spin**2*y**3 \
                        - 4*epsilon**2*spin*y**4*numpy.sqrt(com_term)
                        + 9*epsilon**2*y**6 - 48*epsilon**2*y**5 + 64*epsilon**2*y**4 - 12*epsilon*spin**2*y**6 
                        - 8*epsilon*spin*y**7*numpy.sqrt(com_term) 
@@ -25,14 +49,17 @@ def func(y,spin,epsilon):
                        + 2*y**11 * (com_term) 
                        + 4*y**10 
                       )) 
-        return unc 
-#     print('com_term=',com_term,y,spin,epsilon) 
+        return f 
     return None 
 
 def func_der(y,spin,epsilon): 
+    ''' Defined using the 'function_derivative' variable from the preceding cell.
+        
+        *Dimensionless derivative of effective potential.*
+    '''
     com_term = common(y,spin,epsilon) 
     if com_term != None: 
-        dunk =y*(9*epsilon**3*spin**2*y - 48*epsilon**3*spin**2 + 36*epsilon**2*spin**2*y**4 - 150*epsilon**2*spin**2*y**3 \
+        fder =y*(9*epsilon**3*spin**2*y - 48*epsilon**3*spin**2 + 36*epsilon**2*spin**2*y**4 - 150*epsilon**2*spin**2*y**3 \
                    - 16*epsilon**2*spin*y**4*numpy.sqrt(com_term) 
                    + 54*epsilon**2*y**6 - 288*epsilon**2*y**5 + 384*epsilon**2*y**4 - 48*epsilon*spin**2*y**6  
                    - 32*epsilon*spin*y**7*numpy.sqrt(com_term) 
@@ -43,17 +70,26 @@ def func_der(y,spin,epsilon):
                    + 6*y**11*(com_term)  
                    +24*y**10 
                   ) 
-        return dunk 
+        return fder 
     return None 
 
-def common(y,spin,epsilon): 
-    C = (9*epsilon**2*spin**2)/y**8 - 6*epsilon/y**3 + 16*epsilon/y**4 + 4/y
 
-    if C>=0:
-        return C
-    return None
 
 def IterativeFunc(ran_mx,spin,epsilon, prec):
+    
+    ''' Built-in root finding functions in Python fail to find the roots for
+        certain values of spin and epsilon due to the fluctuations in the potential 
+        function at higher values of epsilon and therefore we define an iterative 
+        root finding function for our specific scenario.
+    
+        It takes a range between two numbers and runs itiratively to find the
+        value of the radial coordinate R where the potential function (func()) and
+        the derivative of the potential function (func_der()) change sign 
+        simultaneously.
+        
+        The 'prec' argument determines the precision of the values found. 
+    '''
+    
     for i in range(len(ran_mx) -1):
         d = common(ran_mx[i],spin,epsilon)
         p = common(ran_mx[i+1],spin,epsilon)
@@ -72,24 +108,45 @@ def IterativeFunc(ran_mx,spin,epsilon, prec):
     return None
 
 def LR_pos(spin,epsilon):
+    
+    ''' For different values of spin and epsilon, the location
+        of the light ring is different.
+        
+        The function IterativeFunc is called for different ranges 
+        of epsilon by adjust the minimum and maximum of the radial coordinate R. 
+        If the range is too wide or narrow for R, the IterativeFunc misses the
+        root and returns None. 
+        
+        The validity of IterativeFunc for different values of epsilon
+        are found by trail and error.
+    '''
+    
     prec = 1e-8
-    if  -10<epsilon<=-1:
-        ran_x = numpy.linspace(2.,4.3, 1000)
+    if  -10.<epsilon<=-1:
+        ran_x = numpy.linspace(1.7,4.3, 1000)
         ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
         Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
-    elif -1.<epsilon<=75.:
-        ran_x = numpy.linspace(1.50,4.0, 1000)
+    elif -1<epsilon<0.:
+        ran_x = numpy.linspace(0.9,4.1, 1000)
         ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
         Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
-    elif 75.<epsilon<=105.:
+    elif epsilon == 0:
+        ran_x = numpy.linspace(0.9,4.1, 1000)
+        ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
+        Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=1e-1)
+    elif 0.<epsilon<=75.:
+        ran_x = numpy.linspace(1.5,4.0, 1000)
+        ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
+        Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
+    elif 75.<epsilon<=100.:
         ran_x = numpy.linspace(1.4,3.45, 1000)
         ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
         Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
-    elif 105.< epsilon <=170.:
-        ran_x = numpy.linspace(1.4,3.2, 1000)
+    elif 100.< epsilon <=160.:
+        ran_x = numpy.linspace(1.5,3.2, 1000)
         ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
         Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
-    elif 170.< epsilon <=280.:
+    elif 160.< epsilon <=280.:
         ran_x = numpy.linspace(1.4,3.1, 1000)
         ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
         Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
@@ -98,7 +155,7 @@ def LR_pos(spin,epsilon):
         ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
         Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
     else:
-        ran_x = numpy.linspace(3.,5, 1000)
+        ran_x = numpy.linspace(3.,10, 1000)
         ran_mx = 0.5*(ran_x[1::] + ran_x[:-1:])
         Rpos = IterativeFunc(ran_mx,spin,epsilon,prec=prec)
     return Rpos
@@ -106,17 +163,54 @@ def LR_pos(spin,epsilon):
 
 
 def freqM_dim_less(spin,epsilon): 
+    
+    ''' Once the light ring location given the value of spin and epsilon 
+        is found, we evaluate the dimensionless frequency at the light ring of a
+        given value of spin and epsilon.
+        
+        If LR_pos() is not None, then the function finds the dimensionless frequency 
+        for the given parameters. 
+        If LR_pos() is None, the function returns a large number (O(10^2)) to ensure that 
+        the output is a floating point and far away from the actual order of dimensionless
+        frequencies (typically O(10^-1)).
+        
+        This expression is obtained using 'Omega1' from the preceding cell. 
+    '''
+    
     y = LR_pos(spin,epsilon)
     if y != None:
         com_term = common(y,spin,epsilon) #(9*epsilon**2*spin**2)/y**8 - 6*epsilon/y**3 + 16*epsilon/y**4 + 4/y 
         frequ = 2*((-3*epsilon*y + 8*epsilon + 2*y**3)/(8*epsilon*spin + 2*spin*y**3 + y**5*numpy.sqrt(com_term)))
-        if frequ>0:
-            return frequ 
-        return 100
+        
+        return frequ 
     return 100
 
 
 def gamma0(spin,epsilon): 
+    
+    ''' Once the light ring location given the value of spin and epsilon 
+        is found, we evaluate the inverse of dimensionless damping time at the light ring of a
+        given the value of spin and epsilon. (The negative sign is conventional.)
+        
+        Due to the presence of a square root in the expression, there can once again
+        exist complex numbers and python raises RuntimeError. We check this by splitting the 
+        fraction expression and check if the ratio is positive. 
+        
+        If it is positive, then this function finds the inverseof dimensionless
+        damping time for the given parameters.
+        If not, the function returns a large number (O(-10^1)) to ensure that 
+        the output is a floating point and far away from the actual order of inverse
+        of dimensionless damping time (typically O(-10^-1)).
+        
+        If LR_pos() is not None, then this function finds the inverse of dimensionless
+        damping time for the given parameters. 
+        If LR_pos() is None, the function returns a large number (O(10^1)) to ensure that 
+        the output is a floating point and far away from the actual order of inverse
+        of dimensionless damping time (typically O(10^-1)).
+        
+        This expression is obtained using 'gamma1' from the preceding cell. 
+    '''
+    
     y = LR_pos(spin,epsilon)
     if y != None:
         com_term = common(y,spin,epsilon)#(9*epsilon**2*spin**2)/y**8 - 6*epsilon/y**3 + 16*epsilon/y**4 + 4/y 
@@ -191,49 +285,51 @@ def gamma0(spin,epsilon):
         if (numerator/denominator) >= 0: 
 
             gam = freqM_dim_less(spin,epsilon)*numpy.sqrt(numerator/denominator) 
-            if gam>=0:
-                return -1*(gam/4)
-            return -10
-        return -10
+            
+            return -1*(gam/4)
+        return -10 
     return -10
 
 def frequency_in_hertz(mass, spin, epsilon, l, m, n): 
     
+    ''' Having found the dimensionless frequency, we convert the number into SI units of Hertz
+        by dividing the dimensionless frequency by the Mass in seconds. (M*lal.MTSUN_SI)
+        
+        As described by Glampedakis et al., QNM template of a non-Kerr scenrio is comparable
+        when the numerical fits of Kerr are kept intact. To this end, Glampedakis et al. use
+        an inspired function of the form of the interatomic Buckingham potential (Beta_K(x)) for the 
+        numerical fits. The real part of which corresponds to the dimensionless frequency of the light ring.
+        
+        The quantities l, m and n are the harmonics involved in the eikonal approximation.
+    '''
+    
+    if (freqM_dim_less(spin,epsilon)) == None:
+        return None
     return m*(freqM_dim_less(spin,epsilon)+ real_beta(spin,l))/(4*numpy.pi*mass*lal.MTSUN_SI) 
 
 def damping_in_seconds(mass, spin, epsilon, l, m, n): 
+    
+    ''' Having found the inverse of dimensionless damping time, we convert the number into SI units of seconds
+        by multiplying 1/gamma0(spin,epsilon) by the -1 times 
+        the Mass in seconds. (- M*lal.MTSUN_SI)
+        
+        As described by Glampedakis et al., QNM template of a non-Kerr scenrio is comparable
+        when the numerical fits of Kerr are kept intact. To this end, Glampedakis et al. use
+        an inspired function of the form of the interatomic Buckingham potential (Beta_K(x)) for the 
+        numerical fits. The imaginary part of which corresponds to the inverse of dimensionless damping time
+        of the light ring.
+    '''
+    
+    if (gamma0(spin,epsilon)) == None:
+        return None
     return -1*(mass*lal.MTSUN_SI)/((gamma0(spin,epsilon)+im_beta(spin,l)))
-
-def get_JP_lm_f0tau(mass,spin,epsilon,l,m,n=0, which='both'):
-    mass, spin, l, m, n, input_is_array = ensurearray(
-        mass, spin, l, m, n)
-    # we'll ravel the arrays so we can evaluate each parameter combination
-    # one at a a time
-    getf0 = which == 'both' or which == 'f0'
-    gettau = which == 'both' or which == 'tau'
-    out = []
-    if getf0:
-        f0s = frequency_in_hertz(mass,spin,epsilon, l, m, n) 
-        out.append(formatreturn(f0s, input_is_array))
-    if gettau:
-        taus = damping_in_seconds(mass,spin,epsilon, l, m, n) 
-        out.append(formatreturn(taus, input_is_array))
-    if not (getf0 and gettau):
-        out = out[0]
-    return out
-def get_JP_lm_f0tau_allmodes(mass,spin,epsilon,modes):
-    f0, tau = {}, {}
-    for lmn in modes:
-        key = '{}{}{}'
-        l, m, nmodes = int(lmn[0]), int(lmn[1]), int(lmn[2])
-        for n in range(nmodes):
-            tmp_f0, tmp_tau = get_JP_lm_f0tau(mass, spin,epsilon, l, m, n)
-            f0[key.format(l, abs(m), n)] = tmp_f0
-            tau[key.format(l, abs(m), n)] = tmp_tau
-    return f0, tau
-
 def real_beta(spin,l):
-    if l == 2:
+    
+    ''' Fitting coefficients for the real part of Beta_K(x) for different l=m modes.
+        (Glampedakis et al.)
+    '''
+    
+    if   l == 2:
         a1,a2,a3,a4,a5,a6,err = 0.1282,0.4178,0.6711,0.5037,1.8331,0.7596,0.023
     elif l == 3:
         a1,a2,a3,a4,a5,a6,err = 0.1801, 0.5007,0.7064,0.5704,1.4690,0.7302, 0.005
@@ -250,7 +346,12 @@ def real_beta(spin,l):
 
 
 def im_beta(spin,l):
-    if l == 2:
+    
+    ''' Fitting coefficients for the imaginary part of Beta_K(x) for different l=m modes.
+        (Glampedakis et al.)
+    '''
+    
+    if   l == 2:
         a1,a2,a3,a4,a5,a6,err = 0.1381,0.3131,0.5531,0.8492,2.2159,0.8544,0.004
     elif l == 3:
         a1,a2,a3,a4,a5,a6,err = 0.1590,0.3706,0.6643,0.6460,1.8889,0.6676,0.008
@@ -265,77 +366,72 @@ def im_beta(spin,l):
 
     return a1 + a2*numpy.exp(-a3*(1-(spin))**a4) - (1/(a5 + (1-(spin))**a6)) + (err*1e-2)
 
+#### The following code chunk can be adjusted according the event and your local specifications #####
 def process_iteration(i): 
     xs = spin[i] 
     epsi = e3[i] 
     mAs = mass[i] 
     result = []
 
-    X2, Y2 = frequency_in_hertz_withfit(mAs, xs, epsi, 2, 2, 0), damping_in_seconds_withfit(mAs, xs, epsi, 2, 2, 0) 
+    X1, Y1 = frequency_in_hertz(mAs, xs, epsi, 2, 2, 0), damping_in_seconds(mAs, xs, epsi, 2, 2, 0) 
     a = [mAs, xs, epsi] 
-  
-    data2 = numpy.array((X2, Y2)) 
-    Z2 = kernel19_2.evaluate(data2) 
-  
-    for _ in range(int(Z2 * 100)): 
+    data1 = numpy.array((X1, Y1)) 
+    Z1 = kernel15.evaluate(data1)[0]
+    for _ in range(int(Z1 * 100)): 
         result.append(a)
     return result 
 
 if __name__ == "__main__": 
+    fp = io.loadfile('your_data_file_location', 'r') 
+    Samples = fp.read_samples(fp['samples'].keys()) 
+    #mass_est = samples['final_mass_from_f0_tau(f_220, tau_220, 2, 2)'] 
+    #spin_est = samples['final_spin_from_f0_tau(f_220, tau_220, 2, 2)'] 
+    Xf15 = Samples['f_220'] 
+    Yf15 = Samples['tau_220'] 
+    xmin = numpy.min(Xf15) 
+    xmax = numpy.max(Xf15) 
 
-    gp = io.loadfile('AGNOSTIC-06MS.hdf', 'r') 
-    Samples1 = gp.read_samples(gp['samples'].keys()) 
+    ymin = numpy.min(Yf15) 
+    ymax = numpy.max(Yf15) 
+
+    data15 = numpy.array((Xf15,Yf15)) 
+
+    X15, Y15= numpy.mgrid[xmin:xmax:100j, ymin:ymax:100j] 
+
+
+    positions15 = numpy.vstack([X15.ravel(), Y15.ravel()]) 
+
+    kernel15 = stats.gaussian_kde(data15) 
     
-    ##### 220 mode ringdown ####
-    Xf19_2 = Samples1['f_a'] 
-    Yf19_2 = Samples1['tau_a']  
-    
-    xmin19_2 = numpy.min(Xf19_2) 
-    xmax19_2 = numpy.max(Xf19_2) 
-
-    ymin19_2 = numpy.min(Yf19_2) 
-    ymax19_2 = numpy.max(Yf19_2) 
-
-    data19_2 = numpy.array((Xf19_2,Yf19_2)) 
-
-    X19_2, Y19_2= numpy.mgrid[xmin19_2:xmax19_2:100j, ymin19_2:ymax19_2:100j] 
-
-
-    positions19_2 = numpy.vstack([X19_2.ravel(), Y19_2.ravel()]) 
-
-    kernel19_2 = stats.gaussian_kde(data19_2) 
-
     num_processes = mp.cpu_count() 
-    size =  6*num_processes**3
+    size =  int(3*num_processes**3) ##ADJUST ACCORDING TO YOUR CPU SPECFICS
 
-    ## GR motivated prior (Phenom PHM) on mass: M_f  = 252 => [0.5*M_f, 1.5*M_f] => [126,378] 
-    ## Ref: arXiv:2009.01190 
-    mass = numpy.random.uniform(low = 126.0, high = 378.0, size = int(size))
-    spin = numpy.random.uniform(low = 0., high = 1.0, size = int(size))
+    mass = numpy.random.uniform(low = (1-0.50)*67.6, high = (1+0.50)*67.6, size = int(size)) ## from IMR of GW150914
+    spin = numpy.random.uniform(low = 0., high = 1.0, size = int(size))  
     e3 = numpy.random.uniform(low = -30.0, high = 300.0, size = int(size))
+
+    
 
     with mp.Pool(processes=num_processes) as pool: 
         results = list(tqdm(pool.imap(process_iteration, range(size)), total=size)) 
 
     # Flatten the results 
-    post = [item for sublist in results for item in sublist] 
+    post15 = [item for sublist in results for item in sublist] 
 
-Mvals=[]
-e3vals=[]
-Xvals=[]
+## Extracting values
+Mvals15=[]
+e3vals15=[]
+Xvals15=[]
 
-for i in range(len(post)):
-    Mvals.append(post[i][0])
-    Xvals.append(post[i][1])
-    e3vals.append(post[i][2])
-
-file_name = "GRMassPrior190521-single-M126-378-E-30-300.hdf"
+for i in range(len(post15)):
+    Mvals15.append(post15[i][0])
+    Xvals15.append(post15[i][1])
+    e3vals15.append(post15[i][2])
+## Saving GW150914 files
+file_name = "your_file_name_and_save_location"
 with h5py.File(file_name, 'w') as f:
-#     # Create a group to organize the data
-#     group = f.create_group('my_data_group')
 
-    # Save the arrays to the HDF5 file
-    f.create_dataset('All_param', data = post)
-    f.create_dataset('Mass', data=Mvals)
-    f.create_dataset('Spin', data=Xvals)
-    f.create_dataset('Epsilon',data = e3vals)
+    f.create_dataset('All_param', data = post15)
+    f.create_dataset('Mass', data=Mvals15)
+    f.create_dataset('Spin', data=Xvals15)
+    f.create_dataset('Epsilon',data = e3vals15)
